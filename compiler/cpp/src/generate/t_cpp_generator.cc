@@ -66,6 +66,10 @@ class t_cpp_generator : public t_oop_generator {
     iter = parsed_options.find("include_prefix");
     use_include_prefix_ = (iter != parsed_options.end());
 
+    iter = parsed_options.find("include_guard_prefix");
+    if (iter != parsed_options.end())
+        include_guard_prefix_ = iter->second;
+
     iter = parsed_options.find("cob_style");
     gen_cob_style_ = (iter != parsed_options.end());
 
@@ -250,6 +254,11 @@ class t_cpp_generator : public t_oop_generator {
   std::string get_include_prefix(const t_program& program) const;
 
   /**
+   * will be used to #ifndef and #define include guards.
+   */
+  std::string include_guard_prefix_;
+
+  /**
    * True if we should generate pure enums for Thrift enums, instead of wrapper classes.
    */
   bool gen_pure_enums_;
@@ -356,12 +365,12 @@ void t_cpp_generator::init_generator() {
 
   // Start ifndef
   f_types_ <<
-    "#ifndef " << program_name_ << "_TYPES_H" << endl <<
-    "#define " << program_name_ << "_TYPES_H" << endl <<
+    "#ifndef " << include_guard_prefix_ << program_name_ << "_TYPES_H" << endl <<
+    "#define " << include_guard_prefix_ << program_name_ << "_TYPES_H" << endl <<
     endl;
   f_types_tcc_ <<
-    "#ifndef " << program_name_ << "_TYPES_TCC" << endl <<
-    "#define " << program_name_ << "_TYPES_TCC" << endl <<
+    "#ifndef " << include_guard_prefix_ << program_name_ << "_TYPES_TCC" << endl <<
+    "#define " << include_guard_prefix_ << program_name_ << "_TYPES_TCC" << endl <<
     endl;
 
   // Include base types
@@ -596,8 +605,8 @@ void t_cpp_generator::generate_consts(std::vector<t_const*> consts) {
 
   // Start ifndef
   f_consts <<
-    "#ifndef " << program_name_ << "_CONSTANTS_H" << endl <<
-    "#define " << program_name_ << "_CONSTANTS_H" << endl <<
+    "#ifndef " << include_guard_prefix_ << program_name_ << "_CONSTANTS_H" << endl <<
+    "#define " << include_guard_prefix_ << program_name_ << "_CONSTANTS_H" << endl <<
     endl <<
     "#include \"" << get_include_prefix(*get_program()) << program_name_ <<
     "_types.h\"" << endl <<
@@ -1608,8 +1617,8 @@ void t_cpp_generator::generate_service(t_service* tservice) {
   f_header_ <<
     autogen_comment();
   f_header_ <<
-    "#ifndef " << svcname << "_H" << endl <<
-    "#define " << svcname << "_H" << endl <<
+    "#ifndef " << include_guard_prefix_ << svcname << "_H" << endl <<
+    "#define " << include_guard_prefix_ << svcname << "_H" << endl <<
     endl;
   if (gen_cob_style_) {
     f_header_ <<
@@ -1666,8 +1675,8 @@ void t_cpp_generator::generate_service(t_service* tservice) {
       ".h\"" << endl;
 
     f_service_tcc_ <<
-      "#ifndef " << svcname << "_TCC" << endl <<
-      "#define " << svcname << "_TCC" << endl <<
+      "#ifndef " << include_guard_prefix_ << svcname << "_TCC" << endl <<
+      "#define " << include_guard_prefix_ << svcname << "_TCC" << endl <<
       endl;
 
     if (gen_cob_style_) {
@@ -4660,5 +4669,7 @@ THRIFT_REGISTER_GENERATOR(cpp, "C++",
 "    pure_enums:      Generate pure enums instead of wrapper classes.\n"
 "    dense:           Generate type specifications for the dense protocol.\n"
 "    include_prefix:  Use full include paths in generated files.\n"
+"    include_guard_prefix:\n"
+"                     Prefix include guards #ifndef with given string.\n"
 )
 

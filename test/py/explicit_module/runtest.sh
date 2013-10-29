@@ -19,7 +19,7 @@
 # under the License.
 #
 
-rm -rf gen-py
+rm -rf gen-py simple thediffs ttest
 ../../../compiler/cpp/thrift --gen py test1.thrift || exit 1
 ../../../compiler/cpp/thrift --gen py test2.thrift || exit 1
 PYTHONPATH=./gen-py python -c 'import foo.bar.baz' || exit 1
@@ -32,6 +32,7 @@ diff -ur simple gen-py > thediffs
 file thediffs | grep -s -q empty || exit 1
 rm -rf simple thediffs
 
+# relative_imports basic generation
 rm -rf gen-py
 ../../../compiler/cpp/thrift -r --gen py:relative_imports test3.thrift || exit 1
 PYTHONPATH=./gen-py python -c 'import foo.bar.test3' || exit 1
@@ -43,5 +44,13 @@ diff -ur simple gen-py > thediffs
 file thediffs | grep -s -q empty || exit 1
 rm -rf simple thediffs
 
+# relative_imports - should work for any Python Path
+rm -rf ttest
+mkdir ttest
+mv gen-py ttest/sub
+touch ttest/__init__.py
+echo "from .sub.foo.bar import test3" > ttest/test3.py
+python -c "import ttest.test3" || exit 1
+rm -rf ttest
 
 echo 'All tests pass!'

@@ -31,4 +31,17 @@ PYTHONPATH=./gen-py python -c 'import test2' || exit 1
 diff -ur simple gen-py > thediffs
 file thediffs | grep -s -q empty || exit 1
 rm -rf simple thediffs
+
+rm -rf gen-py
+../../../compiler/cpp/thrift -r --gen py:relative_imports test3.thrift || exit 1
+PYTHONPATH=./gen-py python -c 'import foo.bar.test3' || exit 1
+cp -r gen-py simple
+../../../compiler/cpp/thrift --gen py:relative_imports test1.thrift || exit 1
+../../../compiler/cpp/thrift --gen py:relative_imports test2.thrift || exit 1
+../../../compiler/cpp/thrift --gen py:relative_imports test3.thrift || exit 1
+diff -ur simple gen-py > thediffs
+file thediffs | grep -s -q empty || exit 1
+rm -rf simple thediffs
+
+
 echo 'All tests pass!'

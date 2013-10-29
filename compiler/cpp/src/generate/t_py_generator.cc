@@ -58,6 +58,9 @@ class t_py_generator : public t_generator {
     iter = parsed_options.find("new_style");
     gen_newstyle_ = (iter != parsed_options.end());
 
+    iter = parsed_options.find("relative_imports");
+    gen_relative_imports_ = (iter != parsed_options.end());
+
     iter = parsed_options.find("slots");
     gen_slots_ = (iter != parsed_options.end());
 
@@ -271,6 +274,10 @@ class t_py_generator : public t_generator {
     }
     return real_module;
   }
+  // two functions below are used for getting relative module working
+  // they need to know current program_ to decide on relative import
+  std::string get_real_py_module_rel(const t_program* program, bool gen_twisted) const;
+  std::string get_real_py_module_as(const t_program* program, bool gen_twisted) const;
 
  private:
 
@@ -278,6 +285,11 @@ class t_py_generator : public t_generator {
    * True if we should generate new-style classes.
    */
   bool gen_newstyle_;
+
+  /**
+   * True if we should generate realtive imports.
+   */
+  bool gen_relative_imports_;
 
    /**
    * True if we should generate dynamic style classes.
@@ -385,7 +397,7 @@ void t_py_generator::init_generator() {
   f_consts_ <<
     py_autogen_comment() << endl <<
     py_imports() << endl <<
-    "from ttypes import *" << endl <<
+    (gen_relative_imports_ ? "from .ttypes import *" : "from ttypes import *") << endl <<
     endl;
 }
 
@@ -396,7 +408,14 @@ string t_py_generator::render_includes() {
   const vector<t_program*>& includes = program_->get_includes();
   string result = "";
   for (size_t i = 0; i < includes.size(); ++i) {
-    result += "import " + get_real_py_module(includes[i], gen_twisted_) + ".ttypes\n";
+    if (!gen_relative_imports_){
+      result += "import " + get_real_py_module(includes[i], gen_twisted_) + ".ttypes\n";
+    }
+    else{
+      // from ...package.name import ttypes as package_name_ttypes
+      result += "from " + get_real_py_module_rel(includes[i], gen_twisted_) + 
+          " import ttypes as " + get_real_py_module_as(includes[i], gen_twisted_) + "_ttypes";
+    }
   }
   if (includes.size() > 0) {
     result += "\n";
@@ -1039,13 +1058,22 @@ void t_py_generator::generate_service(t_service* tservice) {
     py_imports() << endl;
 
   if (tservice->get_extends() != NULL) {
-    f_service_ <<
-      "import " << get_real_py_module(tservice->get_extends()->get_program(), gen_twisted_) <<
-      "." << tservice->get_extends()->get_name() << endl;
+    t_program* program = tservice->get_extends()->get_program();
+    if (gen_relative_imports_){
+      f_service_ << 
+        "from " << get_real_py_module_rel(program, gen_twisted_) <<
+        " import " << tservice->get_extends()->get_name() << 
+        " as " << get_real_py_module_as(program, gen_twisted_) << "_" << 
+        tservice->get_extends()->get_name() << endl;
+    } else {
+      f_service_ <<
+        "import " << get_real_py_module(program, gen_twisted_) <<
+        "." << tservice->get_extends()->get_name() << endl;
+    }
   }
 
   f_service_ <<
-    "from ttypes import *" << endl <<
+    (gen_relative_imports_ ? "from .ttypes import *" : "from ttypes import *") << endl <<
     "from thrift.Thrift import TProcessor" << endl <<
     render_fastbinary_includes() << endl;
 
@@ -2678,10 +2706,18 @@ string t_py_generator::argument_list(t_struct* tstruct, vector<string> *pre, vec
 string t_py_generator::type_name(t_type* ttype) {
   t_program* program = ttype->get_program();
   if (ttype->is_service()) {
-    return get_real_py_module(program, gen_twisted_) + "." + ttype->get_name();
+    if (gen_relative_imports_){
+      return get_real_py_module_as(program, gen_twisted_) + "." + ttype->get_name();
+    } else {
+      return get_real_py_module(program, gen_twisted_) + "." + ttype->get_name();
+    }
   }
   if (program != NULL && program != program_) {
-    return get_real_py_module(program, gen_twisted_) + ".ttypes." + ttype->get_name();
+    if (gen_relative_imports_){
+      return get_real_py_module_as(program, gen_twisted_) + "_ttypes." + ttype->get_name();
+    } else {
+      return get_real_py_module(program, gen_twisted_) + ".ttypes." + ttype->get_name();
+    }
   }
   return ttype->get_name();
 }
@@ -2762,6 +2798,80 @@ string t_py_generator::type_to_spec_args(t_type* ttype) {
 }
 
 
+static std::string get_common_module_namespace(const std::string & a, const std::string & b){
+  if (a.size() < b.size()){
+      return get_common_module_namespace(b, a);
+  }
+  unsigned shared = 0;
+  for (unsigned i = 0; i < std::min(a.size(), b.size()); ++i){
+    if (a[i] != b[i])
+      return a.substr(0, shared);
+    if (a[i] == '.') // namespace separator
+      shared = i;
+  }
+  // everything is equal so far
+  if (a.size() == b.size())
+      return a;
+  // remember, a is longer than b
+  if (a[b.size()] == '.')
+      return b;
+  return a.substr(0, shared);
+}
+
+
+std::string t_py_generator::get_real_py_module_rel(const t_program* program, bool gen_twisted) const {
+  if(gen_twisted) {
+    // we use absolute path just as in get_real_py_module function
+    std::string twisted_module = program->get_namespace("py.twisted");
+    if(!twisted_module.empty()){
+      return twisted_module;
+    }
+  }
+
+  std::string real_module = program->get_namespace("py");
+  if (real_module.empty()) {
+    return program->get_name();
+  }
+  // real_module may share some parts with our own program:
+  std::string our_module = program_->get_namespace("py");
+  if (our_module.empty()) {
+    return real_module;
+  }
+  std::string shared_prefix = get_common_module_namespace(our_module, real_module);
+  if (shared_prefix.empty()){
+    return real_module;
+  }
+  // compute the number of "."
+  unsigned dot_count = 1;
+  for(unsigned i = shared_prefix.size(); i < our_module.size(); ++i){
+    if (our_module[i] == '.'){
+      ++dot_count;
+    }
+  }
+  std::string result(dot_count, '.');
+  result.append(real_module.substr(shared_prefix.size()));
+  return result;
+}
+
+std::string t_py_generator::get_real_py_module_as(const t_program* program, bool gen_twisted) const {
+  if(gen_twisted) {
+    // we don't touch twisted modules = they are absolute imports anyways
+    std::string twisted_module = program->get_namespace("py.twisted");
+    if(!twisted_module.empty()){
+      return twisted_module;
+    }
+  }
+
+  std::string real_module = program->get_namespace("py");
+  if (real_module.empty()) {
+    return program->get_name();
+  }
+  // replace all . with _ 
+  std::replace(real_module.begin(), real_module.end(), '.', '_');
+  return real_module;
+}
+
+
 THRIFT_REGISTER_GENERATOR(py, "Python",
 "    new_style:       Generate new-style classes.\n" \
 "    twisted:         Generate Twisted-friendly RPC services.\n" \
@@ -2772,4 +2882,6 @@ THRIFT_REGISTER_GENERATOR(py, "Python",
 "    dynbase=CLS      Derive generated classes from class CLS instead of TBase.\n" \
 "    dynexc=CLS       Derive generated exceptions from CLS instead of TExceptionBase.\n" \
 "    dynimport='from foo.bar import CLS'\n" \
-"                     Add an import line to generated code to find the dynbase class.\n")
+"                     Add an import line to generated code to find the dynbase class.\n" \
+"    relative_imports:\n" \
+"                     Use relative imports from . import ttypes instead of import ttypes.\n")

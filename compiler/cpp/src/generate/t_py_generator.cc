@@ -2707,7 +2707,7 @@ string t_py_generator::type_name(t_type* ttype) {
   t_program* program = ttype->get_program();
   if (ttype->is_service()) {
     if (gen_relative_imports_){
-      return get_real_py_module_as(program, gen_twisted_) + "." + ttype->get_name();
+      return get_real_py_module_as(program, gen_twisted_) + "_" + ttype->get_name();
     } else {
       return get_real_py_module(program, gen_twisted_) + "." + ttype->get_name();
     }

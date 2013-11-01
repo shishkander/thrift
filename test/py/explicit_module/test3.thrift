@@ -28,3 +28,11 @@ struct relative {
   1: test1.astruct x;
   2: test2.another y;
 }
+
+service Service13 extends test1.Service1{
+    void test3();
+}
+
+service Service23 extends test2.Service2{
+    void test3();
+}

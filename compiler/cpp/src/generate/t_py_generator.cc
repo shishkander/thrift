@@ -414,7 +414,7 @@ string t_py_generator::render_includes() {
     else{
       // from ...package.name import ttypes as package_name_ttypes
       result += "from " + get_real_py_module_rel(includes[i], gen_twisted_) + 
-          " import ttypes as " + get_real_py_module_as(includes[i], gen_twisted_) + "_ttypes";
+          " import ttypes as " + get_real_py_module_as(includes[i], gen_twisted_) + "_ttypes\n";
     }
   }
   if (includes.size() > 0) {

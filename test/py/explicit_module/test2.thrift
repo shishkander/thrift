@@ -22,3 +22,7 @@ include "test1.thrift"
 struct another {
   1: test1.astruct something;
 }
+
+service Service2{
+  void test2();
+}

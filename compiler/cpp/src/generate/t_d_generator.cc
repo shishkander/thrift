@@ -108,7 +108,7 @@ class t_d_generator : public t_oop_generator {
     const vector<t_program*>& includes = program_->get_includes();
     for (size_t i = 0; i < includes.size(); ++i) {
       f_types_ <<
-        "import " << render_package(*(includes[i])) <<
+        "public import " << render_package(*(includes[i])) <<
         includes[i]->get_name() << "_types;" << endl;
     }
     if (!includes.empty()) f_types_ << endl;
@@ -133,7 +133,7 @@ class t_d_generator : public t_oop_generator {
       print_default_imports(f_consts);
 
       f_consts <<
-        "import " << render_package(*get_program()) << program_name_ << "_types;" << endl <<
+        "public import " << render_package(*get_program()) << program_name_ << "_types;" << endl <<
         endl;
 
       vector<t_const*>::iterator c_iter;
@@ -228,13 +228,13 @@ class t_d_generator : public t_oop_generator {
 
     print_default_imports(f_service);
 
-    f_service << "import " << render_package(*get_program()) << program_name_ <<
+    f_service << "public import " << render_package(*get_program()) << program_name_ <<
       "_types;" << endl;
 
     t_service* extends_service = tservice->get_extends();
     if (extends_service != NULL) {
       f_service <<
-        "import " << render_package(*(extends_service->get_program())) <<
+        "public import " << render_package(*(extends_service->get_program())) <<
         extends_service->get_name() << ";" << endl;
     }
 

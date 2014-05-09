@@ -63,6 +63,12 @@ class t_d_generator : public t_oop_generator {
   {
     (void) parsed_options;
     (void) option_string;
+
+    std::map<string, string>::const_iterator iter;
+
+    iter = parsed_options.find("no_skeleton");
+    no_skeletons_ = (iter != parsed_options.end());
+
     out_dir_base_ = "gen-d";
   }
 
@@ -361,11 +367,13 @@ class t_d_generator : public t_oop_generator {
 
 
     // Server skeleton generation.
-    string f_skeletonname = package_dir_ + svc_name + "_server.skeleton.d";
-    std::ofstream f_skeleton;
-    f_skeleton.open(f_skeletonname.c_str());
-    print_server_skeleton(f_skeleton, tservice);
-    f_skeleton.close();
+    if (!no_skeletons_){
+        string f_skeletonname = package_dir_ + svc_name + "_server.skeleton.d";
+        std::ofstream f_skeleton;
+        f_skeleton.open(f_skeletonname.c_str());
+        print_server_skeleton(f_skeleton, tservice);
+        f_skeleton.close();
+    }
   }
 
  private:
@@ -774,7 +782,11 @@ class t_d_generator : public t_oop_generator {
   ofstream f_header_;
 
   string package_dir_;
+
+  bool no_skeletons_;
 };
 
-THRIFT_REGISTER_GENERATOR(d, "D", "")
+THRIFT_REGISTER_GENERATOR(d, "D",
+"    no_skeleton:  Do not generate skeleton files.\n"
+)
 

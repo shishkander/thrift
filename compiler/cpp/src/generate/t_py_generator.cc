@@ -2849,7 +2849,9 @@ std::string t_py_generator::get_real_py_module_rel(const t_program* program, boo
     }
   }
   std::string result(dot_count, '.');
-  result.append(real_module.substr(1 + shared_prefix.size())); // skip shared .
+  if (real_module.size() > shared_prefix.size()){
+    result.append(real_module.substr(1 + shared_prefix.size())); // skip shared .
+  }
   return result;
 }
 
